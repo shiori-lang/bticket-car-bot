@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # ===========================================
 # 設定（ここを変更してください）
 # ===========================================
-BOT_TOKEN = "7721052537:AAG8ERAYoJn3jWwVHYLai8xJONt8jGnLjDA"  
+BOT_TOKEN = "7721052537:AAG8ERAYoJn3jWwVHYLai8xJONt8jGnLjDA" 
 CONCIERGE_CHAT_ID = -4849725102
 GROUP_CHAT_ID = -1003416443982
 
@@ -947,15 +947,22 @@ async def cancel_reservation_start(update: Update, context: ContextTypes.DEFAULT
 async def cancel_booking_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """予約キャンセルのコールバック"""
     query = update.callback_query
-    await query.answer()
     
     user_id = query.from_user.id
     booking_id = query.data.split('_')[1]
     
     # 予約データを取得
     if user_id not in confirmed_bookings or booking_id not in confirmed_bookings[user_id]:
-        await query.edit_message_text("⚠️ Error: Booking not found.")
+        await query.answer("⚠️ This booking has already been cancelled.", show_alert=True)
+        await query.edit_message_text(
+            "⚠️ Error: Booking not found or already cancelled.\n"
+            "⚠️ エラー: 予約が見つからないか、既にキャンセルされています。\n"
+            "⚠️ 오류: 예약을 찾을 수 없거나 이미 취소되었습니다."
+        )
         return
+    
+    # 処理中フィードバック
+    await query.answer("Cancelling booking...")
     
     booking_data = confirmed_bookings[user_id][booking_id]
     lang = booking_data.get('language', 'en')
@@ -990,13 +997,28 @@ async def cancel_booking_callback(update: Update, context: ContextTypes.DEFAULT_
     except Exception as e:
         logger.error(f"Failed to notify group: {e}")
     
-    # ユーザーに確認
-    await query.edit_message_text(get_message(lang, 'booking_cancelled'))
-    
-    # 予約データを削除
+    # 予約データを削除（先に削除して、2回目のクリックを防ぐ）
     del confirmed_bookings[user_id][booking_id]
     if not confirmed_bookings[user_id]:
         del confirmed_bookings[user_id]
+    
+    # 元のメッセージを更新（ボタン削除）
+    cancellation_messages = {
+        'ja': f"✅ 予約をキャンセルしました\n\n"
+              f"📅 {booking_data['date']} {booking_data['time']}\n"
+              f"👤 ゲスト: {booking_data['guest_name']}\n"
+              f"🚗 車両: {booking_data['vehicle']['plate']}",
+        'ko': f"✅ 예약이 취소되었습니다\n\n"
+              f"📅 {booking_data['date']} {booking_data['time']}\n"
+              f"👤 게스트: {booking_data['guest_name']}\n"
+              f"🚗 차량: {booking_data['vehicle']['plate']}",
+        'en': f"✅ Booking Cancelled\n\n"
+              f"📅 {booking_data['date']} {booking_data['time']}\n"
+              f"👤 Guest: {booking_data['guest_name']}\n"
+              f"🚗 Vehicle: {booking_data['vehicle']['plate']}"
+    }
+    
+    await query.edit_message_text(cancellation_messages.get(lang, cancellation_messages['en']))
 
 
 # ===========================================
