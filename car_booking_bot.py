@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 # ===========================================
 # 設定（ここを変更してください）
 # ===========================================
-BOT_TOKEN = "7721052537:AAHEt2HDVIiFc-tobeBlOArSNm_Bkdk7jVo"  
-CONCIERGE_CHAT_ID = -4849725102 
+BOT_TOKEN = "7721052537:AAHEt2HDVIiFc-tobeBlOArSNm_Bkdk7jVo"
+CONCIERGE_CHAT_ID = -4849725102
 GROUP_CHAT_ID = -1003416443982
 
 # 車両リスト
@@ -41,30 +41,36 @@ VEHICLES = [
     {"name": "Van Toyota HIACE", "plate": "NAE3633", "location": "BGC"},
 ]
 
-# ドライバーリスト
+# ドライバーリスト（名前とTelegramリンク）
 DRIVERS = {
     "BGC": [
-        "Timothy John Corpuz",
-        "Celso Castillo Jr.",
-        "Jo-emil Punzalan",
-        "Bonifacio Dizon",
-        "Jeremiah Oliva",
-        "Darwin Padilla",
+        {"name": "Timothy John Corpuz", "telegram": "https://t.me/TanJiroBetrnk"},
+        {"name": "Celso Castillo Jr.", "telegram": "https://t.me/celsojrcastillo"},
+        {"name": "Jo-emil Punzalan", "telegram": "https://t.me/Joemilp25"},
+        {"name": "Bonifacio Dizon", "telegram": "https://t.me/Junior08011979"},
+        {"name": "Jeremiah Oliva", "telegram": "https://t.me/Jayremaya"},
     ],
     "Junket": [
-        "Jom Gabion",
-        "Dominador Toyco Jr",
-        "Antonio Florencio",
-        "Severino Salandanan Jr",
+        {"name": "Jom Gabion", "telegram": "https://t.me/k08e24"},
+        {"name": "Dominador Toyco Jr", "telegram": "https://t.me/Toyix81"},
+        {"name": "Antonio Florencio", "telegram": "https://t.me/Poging0025"},
+        {"name": "Severino Salandanan Jr", "telegram": "https://t.me/dobolsierra"},
     ],
-    "Bodyguard": ["Mark Anthony Ces"],
+    "Bodyguard": [
+        {"name": "Mark Anthony Ces", "telegram": "https://t.me/kenvic21"},
+        {"name": "Alvin Principe", "telegram": "https://t.me/Vhinox"},
+        {"name": "Francisco Romero", "telegram": "https://t.me/Romerojr83"},
+    ],
 }
 
 # 会話の状態
-LANGUAGE, GUEST_NAME, DATE, TIME, PICKUP, ROUTE, NOTE = range(7)
+LANGUAGE, GUEST_NAME, DATE, TIME, PICKUP, ROUTE, NOTE, ALTERNATIVE_SUGGESTION = range(8)
 
 # 予約データを一時保存
 pending_bookings = {}
+
+# 代替案待ちのコンサージュ
+awaiting_alternative = {}
 
 # 多言語メッセージ
 MESSAGES = {
@@ -79,7 +85,7 @@ MESSAGES = {
         "ask_route": "🗺️ ルート（目的地）を入力してください:\n（例: BGC → NAIA → BGC）",
         "ask_note": "📝 備考（NOTE）があれば入力してください。\nなければ「なし」または「-」と入力してください:",
         "request_received": "✅ 予約リクエストを受け付けました！\n\nコンサージュが確認中です...\n承認されたら通知が届きます。",
-        "approved": "✅ 予約が承認されました！\n\n🚗 車両: {}\n👤 ドライバー: {}\n📅 日時: {} {}",
+        "approved": "✅ 予約が承認されました！\n\n🚗 車両: {}\n👤 ドライバー: {}\n📱 ドライバーTelegram: {}\n📅 日時: {} {}",
         "rejected": "❌ 予約が却下されました。\n\n別の日時で再度お試しいただくか、コンサージュに直接お問い合わせください。",
         "cancelled": "予約をキャンセルしました。\nまた予約したい場合は /book を送信してください。",
         "error_concierge": "⚠️ エラー: コンサージュチャットIDが設定されていません。\n管理者に連絡してください。",
@@ -98,7 +104,7 @@ MESSAGES = {
         "ask_route": "🗺️ Please enter route (destination):\n(Example: BGC → NAIA → BGC)",
         "ask_note": "📝 Please enter any notes if needed.\nIf none, enter 'none' or '-':",
         "request_received": "✅ Booking request received!\n\nConcierge is reviewing...\nYou will be notified once approved.",
-        "approved": "✅ Booking approved!\n\n🚗 Vehicle: {}\n👤 Driver: {}\n📅 Date/Time: {} {}",
+        "approved": "✅ Booking approved!\n\n🚗 Vehicle: {}\n👤 Driver: {}\n📱 Driver Telegram: {}\n📅 Date/Time: {} {}",
         "rejected": "❌ Booking was rejected.\n\nPlease try again with a different date/time or contact concierge directly.",
         "cancelled": "Booking cancelled.\nTo book again, send /book",
         "error_concierge": "⚠️ Error: Concierge chat ID not configured.\nPlease contact administrator.",
@@ -335,34 +341,62 @@ async def vehicle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pending_bookings[booking_id]['vehicle'] = vehicle
         pending_bookings[booking_id]['vehicle_index'] = vehicle_index
     
-    # ドライバー選択ボタンを表示
-    location = vehicle['location']
-    keyboard = []
-    
-    # 該当ロケーションのドライバー
-    if location in DRIVERS:
-        for driver in DRIVERS[location]:
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"👤 {driver}",
-                    callback_data=f"driver_{booking_id}_{driver}"
-                )
-            ])
-    
-    # ボディガードも追加
-    for driver in DRIVERS["Bodyguard"]:
-        keyboard.append([
-            InlineKeyboardButton(
-                f"🛡️ {driver} (Bodyguard)",
-                callback_data=f"driver_{booking_id}_{driver}"
-            )
-        ])
+    # ロケーション選択ボタンを表示
+    keyboard = [
+        [InlineKeyboardButton("🏢 BGC Drivers", callback_data=f"location_{booking_id}_BGC")],
+        [InlineKeyboardButton("🎰 Junket Drivers", callback_data=f"location_{booking_id}_Junket")],
+        [InlineKeyboardButton("🛡️ Bodyguard", callback_data=f"location_{booking_id}_Bodyguard")],
+    ]
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await query.edit_message_text(
         text=f"✅ Vehicle Selected: {vehicle['plate']} ({vehicle['name']})\n\n"
-             f"Now select a driver:",
+             f"Select driver location:",
+        reply_markup=reply_markup
+    )
+
+
+
+
+async def location_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """ロケーション選択のコールバック"""
+    query = update.callback_query
+    await query.answer()
+    
+    # データ解析: callback_data format is "location_USERID-TIMESTAMP_LOCATION"
+    parts = query.data.split('_', 2)
+    booking_id = parts[1]
+    location = parts[2]
+    
+    # 選択したロケーションのドライバーボタンを表示
+    keyboard = []
+    
+    if location in DRIVERS:
+        for driver in DRIVERS[location]:
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"👤 {driver['name']}",
+                    callback_data=f"driver_{booking_id}_{driver['name']}"
+                )
+            ])
+    
+    # 戻るボタンを追加
+    keyboard.append([
+        InlineKeyboardButton("⬅️ Back to Locations", callback_data=f"backvehicle_{booking_id}")
+    ])
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    location_label = {
+        "BGC": "🏢 BGC",
+        "Junket": "🎰 Junket",
+        "Bodyguard": "🛡️ Bodyguard"
+    }.get(location, location)
+    
+    await query.edit_message_text(
+        text=f"✅ Location: {location_label}\n\n"
+             f"Select a driver:",
         reply_markup=reply_markup
     )
 
@@ -378,24 +412,64 @@ async def driver_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     booking_id = parts[1]
     driver_name = parts[2]
     
+    # ドライバーのTelegramリンクを取得
+    driver_telegram = "N/A"
+    for location_drivers in DRIVERS.values():
+        for driver in location_drivers:
+            if driver['name'] == driver_name:
+                driver_telegram = driver['telegram']
+                break
+    
     # 予約データにドライバー情報を追加
     if booking_id in pending_bookings:
         pending_bookings[booking_id]['driver'] = driver_name
+        pending_bookings[booking_id]['driver_telegram'] = driver_telegram
         pending_bookings[booking_id]['approved_by'] = query.from_user.first_name
     
-    # 承認・却下ボタン
+    # 承認・却下・代替案提案ボタン
     keyboard = [
-        [
-            InlineKeyboardButton("✅ Approve", callback_data=f"approve_{booking_id}"),
-            InlineKeyboardButton("❌ Reject", callback_data=f"reject_{booking_id}")
-        ]
+        [InlineKeyboardButton("✅ Approve", callback_data=f"approve_{booking_id}")],
+        [InlineKeyboardButton("💡 Suggest Alternative", callback_data=f"suggest_{booking_id}")],
+        [InlineKeyboardButton("❌ Reject", callback_data=f"reject_{booking_id}")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await query.edit_message_text(
         text=f"✅ Vehicle: {pending_bookings[booking_id]['vehicle']['plate']}\n"
-             f"✅ Driver: {driver_name}\n\n"
+             f"✅ Driver: {driver_name}\n"
+             f"📱 Driver Telegram: {driver_telegram}\n\n"
              f"Approve this booking?",
+        reply_markup=reply_markup
+    )
+
+
+
+async def back_to_vehicle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """ロケーション選択に戻るコールバック"""
+    query = update.callback_query
+    await query.answer()
+    
+    # データ解析
+    booking_id = query.data.split('_')[1]
+    
+    if booking_id not in pending_bookings:
+        await query.edit_message_text("⚠️ Error: Booking not found.")
+        return
+    
+    vehicle = pending_bookings[booking_id]['vehicle']
+    
+    # ロケーション選択ボタンを再表示
+    keyboard = [
+        [InlineKeyboardButton("🏢 BGC Drivers", callback_data=f"location_{booking_id}_BGC")],
+        [InlineKeyboardButton("🎰 Junket Drivers", callback_data=f"location_{booking_id}_Junket")],
+        [InlineKeyboardButton("🛡️ Bodyguard", callback_data=f"location_{booking_id}_Bodyguard")],
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await query.edit_message_text(
+        text=f"✅ Vehicle Selected: {vehicle['plate']} ({vehicle['name']})\n\n"
+             f"Select driver location:",
         reply_markup=reply_markup
     )
 
@@ -420,11 +494,13 @@ async def approve_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # リクエストした社員に通知
     try:
+        driver_telegram = data.get('driver_telegram', 'N/A')
         await context.bot.send_message(
             chat_id=data['user_id'],
             text=get_message(lang, 'approved', 
                            data['vehicle']['plate'],
                            data['driver'],
+                           driver_telegram,
                            data['date'],
                            data['time'])
         )
@@ -477,6 +553,252 @@ async def reject_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     del pending_bookings[booking_id]
 
 
+async def suggest_alternative_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """代替案提案のコールバック"""
+    query = update.callback_query
+    await query.answer()
+    
+    # データ解析
+    booking_id = query.data.split('_')[1]
+    
+    if booking_id not in pending_bookings:
+        await query.edit_message_text("⚠️ Error: Booking not found.")
+        return
+    
+    # コンサージュIDを保存（後で代替案を受け取るため）
+    awaiting_alternative[query.from_user.id] = {
+        'booking_id': booking_id,
+        'concierge_message_id': query.message.message_id,
+        'concierge_chat_id': query.message.chat_id
+    }
+    
+    # コンサージュに代替案入力を促す
+    await query.edit_message_text(
+        f"💡 Suggesting Alternative Time\n\n"
+        f"Original Request:\n"
+        f"📅 Date: {pending_bookings[booking_id]['date']}\n"
+        f"🕐 Time: {pending_bookings[booking_id]['time']}\n\n"
+        f"Please reply to this message with the alternative date and time.\n"
+        f"Format: YYYY-MM-DD HH:MM\n"
+        f"Example: 2026-02-05 14:00"
+    )
+
+
+async def handle_alternative_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """コンサージュからの代替案入力を処理"""
+    user_id = update.effective_user.id
+    
+    if user_id not in awaiting_alternative:
+        return
+    
+    alternative_info = awaiting_alternative[user_id]
+    booking_id = alternative_info['booking_id']
+    
+    if booking_id not in pending_bookings:
+        await update.message.reply_text("⚠️ Error: Booking not found.")
+        del awaiting_alternative[user_id]
+        return
+    
+    # 代替案のテキストを取得
+    alternative_datetime = update.message.text.strip()
+    
+    # 代替案を保存
+    pending_bookings[booking_id]['alternative_datetime'] = alternative_datetime
+    pending_bookings[booking_id]['alternative_proposed_by'] = update.effective_user.first_name
+    
+    data = pending_bookings[booking_id]
+    lang = data.get('language', 'en')
+    
+    # リクエスターに代替案を送信
+    keyboard = [
+        [InlineKeyboardButton("✅ Accept Alternative", callback_data=f"acceptalt_{booking_id}")],
+        [InlineKeyboardButton("❌ Decline Alternative", callback_data=f"declinealt_{booking_id}")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    if lang == 'ja':
+        alt_message = (
+            f"💡 代替案の提案\n\n"
+            f"申し訳ございません。ご希望の日時では予約が難しい状況です。\n\n"
+            f"📅 元のリクエスト: {data['date']} {data['time']}\n"
+            f"💡 代替案: {alternative_datetime}\n\n"
+            f"この代替案でよろしいでしょうか？"
+        )
+    else:
+        alt_message = (
+            f"💡 Alternative Time Suggested\n\n"
+            f"Sorry, the requested time is not available.\n\n"
+            f"📅 Original Request: {data['date']} {data['time']}\n"
+            f"💡 Suggested Alternative: {alternative_datetime}\n\n"
+            f"Would you like to accept this alternative?"
+        )
+    
+    try:
+        await context.bot.send_message(
+            chat_id=data['user_id'],
+            text=alt_message,
+            reply_markup=reply_markup
+        )
+        
+        # コンサージュに確認
+        await update.message.reply_text(
+            f"✅ Alternative sent to requester!\n\n"
+            f"💡 Suggested: {alternative_datetime}\n"
+            f"Waiting for requester's response..."
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to send alternative to user: {e}")
+        await update.message.reply_text("⚠️ Failed to send alternative to requester.")
+    
+    # 代替案待ちステータスを削除
+    del awaiting_alternative[user_id]
+
+
+async def accept_alternative_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """リクエスターが代替案を承認"""
+    query = update.callback_query
+    await query.answer()
+    
+    booking_id = query.data.split('_')[1]
+    
+    if booking_id not in pending_bookings:
+        await query.edit_message_text("⚠️ Error: Booking not found.")
+        return
+    
+    data = pending_bookings[booking_id]
+    lang = data.get('language', 'en')
+    
+    # 元の日時を代替案に更新
+    data['original_date'] = data['date']
+    data['original_time'] = data['time']
+    data['date'], data['time'] = data['alternative_datetime'].split(' ', 1)
+    
+    # リクエスターに確認
+    if lang == 'ja':
+        await query.edit_message_text(
+            f"✅ 代替案を承認しました\n\n"
+            f"💡 新しい日時: {data['date']} {data['time']}\n\n"
+            f"コンサージュが最終承認を行います..."
+        )
+    else:
+        await query.edit_message_text(
+            f"✅ Alternative Accepted\n\n"
+            f"💡 New Date/Time: {data['date']} {data['time']}\n\n"
+            f"Waiting for concierge final approval..."
+        )
+    
+    # コンサージュに最終承認ボタンを送信
+    keyboard = [
+        [InlineKeyboardButton("✅ Final Approve", callback_data=f"finalapprove_{booking_id}")],
+        [InlineKeyboardButton("❌ Cancel Booking", callback_data=f"reject_{booking_id}")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    try:
+        await context.bot.send_message(
+            chat_id=CONCIERGE_CHAT_ID,
+            text=f"✅ Requester Accepted Alternative!\n\n"
+                 f"👤 Guest: {data['guest_name']}\n"
+                 f"📅 Original: {data['original_date']} {data['original_time']}\n"
+                 f"💡 New Time: {data['date']} {data['time']}\n"
+                 f"🚗 Vehicle: {data['vehicle']['plate']}\n"
+                 f"👤 Driver: {data['driver']}\n\n"
+                 f"Please confirm final approval:",
+            reply_markup=reply_markup
+        )
+    except Exception as e:
+        logger.error(f"Failed to notify concierge: {e}")
+
+
+async def decline_alternative_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """リクエスターが代替案を却下"""
+    query = update.callback_query
+    await query.answer()
+    
+    booking_id = query.data.split('_')[1]
+    
+    if booking_id not in pending_bookings:
+        await query.edit_message_text("⚠️ Error: Booking not found.")
+        return
+    
+    data = pending_bookings[booking_id]
+    lang = data.get('language', 'en')
+    
+    # リクエスターに確認
+    if lang == 'ja':
+        await query.edit_message_text(
+            f"❌ 代替案を却下しました\n\n"
+            f"予約がキャンセルされました。\n"
+            f"別の日時で再度予約をお願いします。"
+        )
+    else:
+        await query.edit_message_text(
+            f"❌ Alternative Declined\n\n"
+            f"Booking has been cancelled.\n"
+            f"Please submit a new request with a different time."
+        )
+    
+    # コンサージュに通知
+    try:
+        await context.bot.send_message(
+            chat_id=CONCIERGE_CHAT_ID,
+            text=f"❌ Requester Declined Alternative\n\n"
+                 f"Booking ID: {booking_id}\n"
+                 f"Guest: {data['guest_name']}\n"
+                 f"Booking cancelled."
+        )
+    except Exception as e:
+        logger.error(f"Failed to notify concierge: {e}")
+    
+    # 予約データを削除
+    del pending_bookings[booking_id]
+
+
+async def final_approve_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """代替案の最終承認"""
+    query = update.callback_query
+    await query.answer("Final approval confirmed!")
+    
+    booking_id = query.data.split('_')[1]
+    
+    if booking_id not in pending_bookings:
+        await query.edit_message_text("⚠️ Error: Booking not found.")
+        return
+    
+    data = pending_bookings[booking_id]
+    lang = data.get('language', 'en')
+    
+    # グループチャットに確定通知を送信
+    await send_confirmation_to_group(context, data)
+    
+    # リクエストした社員に通知
+    try:
+        driver_telegram = data.get('driver_telegram', 'N/A')
+        await context.bot.send_message(
+            chat_id=data['user_id'],
+            text=get_message(lang, 'approved', 
+                           data['vehicle']['plate'],
+                           data['driver'],
+                           driver_telegram,
+                           data['date'],
+                           data['time'])
+        )
+    except Exception as e:
+        logger.error(f"Failed to notify user: {e}")
+    
+    # コンサージュチャットのメッセージを更新
+    await query.edit_message_text(
+        f"✅ Final Approval Complete\n\n"
+        f"Booking ID: {booking_id}\n"
+        f"New Time: {data['date']} {data['time']}\n"
+        f"Approved by: {query.from_user.first_name}"
+    )
+    
+    # 予約データを削除
+    del pending_bookings[booking_id]
+
+
 async def send_confirmation_to_group(context: ContextTypes.DEFAULT_TYPE, data: dict):
     """グループチャットに確定通知を送信"""
     
@@ -485,12 +807,14 @@ async def send_confirmation_to_group(context: ContextTypes.DEFAULT_TYPE, data: d
         return
     
     vehicle = data['vehicle']
+    driver_telegram = data.get('driver_telegram', 'N/A')
     
     message = (
         "🚗 CAR BOOKING CONFIRMED\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n"
         f"🚗 CAR NUMBER: {vehicle['plate']}\n"
         f"👤 ASSIGNED DRIVER: {data['driver']}\n"
+        f"📱 DRIVER TELEGRAM: {driver_telegram}\n"
         f"👥 GUEST NAME: {data['guest_name']}\n"
         f"📅 DATE: {data['date']}\n"
         f"🕐 TIME: {data['time']}\n"
@@ -558,9 +882,18 @@ def main():
     
     # コールバックハンドラー
     application.add_handler(CallbackQueryHandler(vehicle_callback, pattern='^vehicle_'))
+    application.add_handler(CallbackQueryHandler(location_callback, pattern='^location_'))
     application.add_handler(CallbackQueryHandler(driver_callback, pattern='^driver_'))
+    application.add_handler(CallbackQueryHandler(back_to_vehicle_callback, pattern='^backvehicle_'))
     application.add_handler(CallbackQueryHandler(approve_callback, pattern='^approve_'))
+    application.add_handler(CallbackQueryHandler(suggest_alternative_callback, pattern='^suggest_'))
+    application.add_handler(CallbackQueryHandler(accept_alternative_callback, pattern='^acceptalt_'))
+    application.add_handler(CallbackQueryHandler(decline_alternative_callback, pattern='^declinealt_'))
+    application.add_handler(CallbackQueryHandler(final_approve_callback, pattern='^finalapprove_'))
     application.add_handler(CallbackQueryHandler(reject_callback, pattern='^reject_'))
+    
+    # メッセージハンドラー（代替案入力用）
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_alternative_input))
     
     # Botを起動
     print("🚗 Bticket Car Booking Bot を起動しています...")
@@ -571,3 +904,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
