@@ -39,6 +39,7 @@ VEHICLES = [
     {"name": "Toyota Hiace E-lite", "plate": "NEB 9255", "location": "BGC"},
     {"name": "Utility Vehicle Van", "plate": "CBL9754", "location": "BGC"},
     {"name": "Van Toyota HIACE", "plate": "NAE3633", "location": "BGC"},
+    {"name": "MIDORI truck", "plate": "CBS3289", "location": "BGC"},
 ]
 
 # ドライバーリスト（名前とTelegramリンク）
