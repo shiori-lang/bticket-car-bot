@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # ===========================================
 # 設定（ここを変更してください）
 # ===========================================
-BOT_TOKEN = "7721052537:AAHC0Khs1NudLzbOzKmsB1AI4NugnaeYQSw"
+BOT_TOKEN = "7721052537:AAHC0Khs1NudLzbOzKmsB1AI4NugnaeYQSw"  # BotFatherから取得したTOKEN
 CONCIERGE_CHAT_ID = -4849725102
 GROUP_CHAT_ID = -1003416443982
 
@@ -69,6 +69,9 @@ LANGUAGE, GUEST_NAME, DATE, TIME, PICKUP, ROUTE, NOTE, ALTERNATIVE_SUGGESTION = 
 # 予約データを一時保存
 pending_bookings = {}
 
+# 確定済み予約（キャンセル用）
+confirmed_bookings = {}
+
 # 代替案待ちのコンサージュ
 awaiting_alternative = {}
 
@@ -92,10 +95,11 @@ MESSAGES = {
         "error_send": "⚠️ コンサージュへの送信に失敗しました。管理者に連絡してください。",
         "japanese": "日本語",
         "english": "English",
+        "korean": "한국어",
     },
     "en": {
-        "welcome": "Hello, {}!\n\nWelcome to Bticket Car Booking Bot🚗\n\nCommands:\n/book - Start a new booking\n/cancel - Cancel booking\n/help - Show help",
-        "help": "📖 How to use:\n\n1. Start booking with /book\n2. Answer the questions\n3. Concierge will approve\n4. Confirmation will be sent to group chat\n\nTo cancel the booking, send /cancel",
+        "welcome": "Hello, {}!\n\nWelcome to Bticket Car Booking Bot🚗\n\nCommands:\n/book - Start a new booking\n/cancelreservation - Cancel confirmed booking\n/cancel - Cancel booking\n/help - Show help",
+        "help": "📖 How to use:\n\n1. Start booking with /book\n2. Answer the questions\n3. Concierge will approve\n4. Confirmation will be sent to group chat\n\nTo cancel the booking, send /cancel\nTo cancel confirmed booking, send /cancelreservation",
         "book_start": "🚗 Starting car booking.\n\nFirst, please select your language:",
         "language_selected": "✅ {} selected.\n\nPlease enter guest name:\n(Your name or the guest's name you're arranging transport for)\n\nTo cancel, send /cancel",
         "ask_date": "📅 Please enter date:\n(Example: 2025-02-01 or 2/1)",
@@ -107,9 +111,37 @@ MESSAGES = {
         "approved": "✅ Booking approved!\n\n🚗 Vehicle: {}\n👤 Driver: {}\n📱 Driver Telegram: {}\n📅 Date/Time: {} {}",
         "rejected": "❌ Booking was rejected.\n\nPlease try again with a different date/time or contact concierge directly.",
         "cancelled": "Booking cancelled.\nTo book again, send /book",
+        "no_bookings": "You have no confirmed bookings.",
+        "select_booking_to_cancel": "Select a booking to cancel:",
+        "booking_cancelled": "✅ Booking cancelled successfully.",
         "error_concierge": "⚠️ Error: Concierge chat ID not configured.\nPlease contact administrator.",
         "error_send": "⚠️ Failed to send to concierge. Please contact administrator.",
         "japanese": "日本語",
+        "english": "English",
+        "korean": "한국어",
+    },
+    "ko": {
+        "welcome": "안녕하세요, {}님!\n\nBticket 차량 예약 봇에 오신 것을 환영합니다🚗\n\n명령어:\n/book - 새 예약 시작\n/cancelreservation - 확정된 예약 취소\n/cancel - 예약 취소\n/help - 도움말 표시",
+        "help": "📖 사용 방법:\n\n1. /book으로 예약 시작\n2. 질문에 답변\n3. 컨시어지가 승인\n4. 그룹 채팅에 확인 알림이 전송됩니다\n\n예약을 취소하려면 /cancel을 전송하세요\n확정된 예약을 취소하려면 /cancelreservation을 전송하세요",
+        "book_start": "🚗 차량 예약을 시작합니다.\n\n먼저 언어를 선택하세요:",
+        "language_selected": "✅ {}을(를) 선택했습니다.\n\n게스트 이름을 입력하세요:\n(본인의 이름 또는 픽업할 게스트의 이름)\n\n취소하려면 /cancel을 전송하세요",
+        "ask_date": "📅 날짜를 입력하세요:\n(예: 2025-02-01 또는 2/1)",
+        "ask_time": "🕐 시간을 입력하세요:\n(예: 14:00 또는 2:00 PM)",
+        "ask_pickup": "📍 픽업 장소를 입력하세요:\n(예: BGC Office, NAIA Terminal 3)",
+        "ask_route": "🗺️ 경로(목적지)를 입력하세요:\n(예: BGC → NAIA → BGC)",
+        "ask_note": "📝 메모가 있으면 입력하세요.\n없으면 'none' 또는 '-'를 입력하세요:",
+        "request_received": "✅ 예약 요청이 접수되었습니다!\n\n컨시어지가 검토 중입니다...\n승인되면 알림이 전송됩니다.",
+        "approved": "✅ 예약이 승인되었습니다!\n\n🚗 차량: {}\n👤 운전자: {}\n📱 운전자 텔레그램: {}\n📅 날짜/시간: {} {}",
+        "rejected": "❌ 예약이 거부되었습니다.\n\n다른 날짜/시간으로 다시 시도하거나 컨시어지에게 직접 문의하세요.",
+        "cancelled": "예약이 취소되었습니다.\n다시 예약하려면 /book을 전송하세요",
+        "no_bookings": "확정된 예약이 없습니다.",
+        "select_booking_to_cancel": "취소할 예약을 선택하세요:",
+        "booking_cancelled": "✅ 예약이 성공적으로 취소되었습니다.",
+        "error_concierge": "⚠️ 오류: 컨시어지 채팅 ID가 설정되지 않았습니다.\n관리자에게 문의하세요.",
+        "error_send": "⚠️ 컨시어지에게 전송 실패. 관리자에게 문의하세요.",
+        "japanese": "日本語",
+        "english": "English",
+        "korean": "한국어",
         "english": "English",
     }
 }
@@ -172,13 +204,14 @@ async def book_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
             InlineKeyboardButton("🇯🇵 日本語", callback_data="lang_ja"),
-            InlineKeyboardButton("🇺🇸 English", callback_data="lang_en")
+            InlineKeyboardButton("🇺🇸 English", callback_data="lang_en"),
+            InlineKeyboardButton("🇰🇷 한국어", callback_data="lang_ko")
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        "🚗 Starting car booking.\n車の予約を開始します。\n\nPlease select your language:\n言語を選択してください:",
+        "🚗 Starting car booking | 車の予約を開始します | 차량 예약을 시작합니다\n\nPlease select your language | 言語を選択してください | 언어를 선택하세요:",
         reply_markup=reply_markup
     )
     
@@ -489,6 +522,12 @@ async def approve_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = pending_bookings[booking_id]
     lang = data.get('language', 'en')
     
+    # 確定済み予約として保存
+    user_id = data['user_id']
+    if user_id not in confirmed_bookings:
+        confirmed_bookings[user_id] = {}
+    confirmed_bookings[user_id][booking_id] = data.copy()
+    
     # グループチャットに確定通知を送信
     await send_confirmation_to_group(context, data)
     
@@ -769,6 +808,12 @@ async def final_approve_callback(update: Update, context: ContextTypes.DEFAULT_T
     data = pending_bookings[booking_id]
     lang = data.get('language', 'en')
     
+    # 確定済み予約として保存
+    user_id = data['user_id']
+    if user_id not in confirmed_bookings:
+        confirmed_bookings[user_id] = {}
+    confirmed_bookings[user_id][booking_id] = data.copy()
+    
     # グループチャットに確定通知を送信
     await send_confirmation_to_group(context, data)
     
@@ -845,6 +890,87 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 
+async def cancel_reservation_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """確定済み予約をキャンセル - 予約一覧を表示"""
+    user_id = update.effective_user.id
+    lang = context.user_data.get('language', 'en')
+    
+    # ユーザーの確定済み予約を取得
+    if user_id not in confirmed_bookings or not confirmed_bookings[user_id]:
+        await update.message.reply_text(get_message(lang, 'no_bookings'))
+        return
+    
+    # 予約選択ボタンを作成
+    keyboard = []
+    for booking_id, booking_data in confirmed_bookings[user_id].items():
+        booking_summary = f"📅 {booking_data['date']} {booking_data['time']} - {booking_data['guest_name']}"
+        keyboard.append([
+            InlineKeyboardButton(booking_summary, callback_data=f"cancelbook_{booking_id}")
+        ])
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        get_message(lang, 'select_booking_to_cancel'),
+        reply_markup=reply_markup
+    )
+
+
+async def cancel_booking_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """予約キャンセルのコールバック"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    booking_id = query.data.split('_')[1]
+    
+    # 予約データを取得
+    if user_id not in confirmed_bookings or booking_id not in confirmed_bookings[user_id]:
+        await query.edit_message_text("⚠️ Error: Booking not found.")
+        return
+    
+    booking_data = confirmed_bookings[user_id][booking_id]
+    lang = booking_data.get('language', 'en')
+    
+    # コンサージュに通知
+    try:
+        await context.bot.send_message(
+            chat_id=CONCIERGE_CHAT_ID,
+            text=f"❌ BOOKING CANCELLED BY USER\n\n"
+                 f"Booking ID: {booking_id}\n"
+                 f"👤 Guest: {booking_data['guest_name']}\n"
+                 f"📅 Date: {booking_data['date']}\n"
+                 f"🕐 Time: {booking_data['time']}\n"
+                 f"🚗 Vehicle: {booking_data['vehicle']['plate']}\n"
+                 f"👤 Driver: {booking_data['driver']}\n"
+                 f"✍️ Cancelled by: {query.from_user.first_name}"
+        )
+    except Exception as e:
+        logger.error(f"Failed to notify concierge: {e}")
+    
+    # グループに通知
+    try:
+        await context.bot.send_message(
+            chat_id=GROUP_CHAT_ID,
+            text=f"❌ BOOKING CANCELLED\n\n"
+                 f"👤 Guest: {booking_data['guest_name']}\n"
+                 f"📅 Date: {booking_data['date']}\n"
+                 f"🕐 Time: {booking_data['time']}\n"
+                 f"🚗 Vehicle: {booking_data['vehicle']['plate']}\n"
+                 f"👤 Driver: {booking_data['driver']}"
+        )
+    except Exception as e:
+        logger.error(f"Failed to notify group: {e}")
+    
+    # ユーザーに確認
+    await query.edit_message_text(get_message(lang, 'booking_cancelled'))
+    
+    # 予約データを削除
+    del confirmed_bookings[user_id][booking_id]
+    if not confirmed_bookings[user_id]:
+        del confirmed_bookings[user_id]
+
+
 # ===========================================
 # メイン関数
 # ===========================================
@@ -878,6 +1004,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("getchatid", get_chat_id))
+    application.add_handler(CommandHandler("cancelreservation", cancel_reservation_start))
     application.add_handler(conv_handler)
     
     # コールバックハンドラー
@@ -890,6 +1017,7 @@ def main():
     application.add_handler(CallbackQueryHandler(accept_alternative_callback, pattern='^acceptalt_'))
     application.add_handler(CallbackQueryHandler(decline_alternative_callback, pattern='^declinealt_'))
     application.add_handler(CallbackQueryHandler(final_approve_callback, pattern='^finalapprove_'))
+    application.add_handler(CallbackQueryHandler(cancel_booking_callback, pattern='^cancelbook_'))
     application.add_handler(CallbackQueryHandler(reject_callback, pattern='^reject_'))
     
     # メッセージハンドラー（代替案入力用）
@@ -904,4 +1032,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
