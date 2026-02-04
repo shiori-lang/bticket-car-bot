@@ -204,7 +204,7 @@ async def book_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
             InlineKeyboardButton("🇯🇵 日本語", callback_data="lang_ja"),
-            InlineKeyboardButton("🇺🇸 English", callback_data="lang_en"),
+            InlineKeyboardButton("🇵🇭 English", callback_data="lang_en"),
             InlineKeyboardButton("🇰🇷 한국어", callback_data="lang_ko")
         ]
     ]
