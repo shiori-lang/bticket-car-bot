@@ -663,6 +663,14 @@ async def handle_alternative_input(update: Update, context: ContextTypes.DEFAULT
             f"💡 代替案: {alternative_datetime}\n\n"
             f"この代替案でよろしいでしょうか？"
         )
+    elif lang == 'ko':
+        alt_message = (
+            f"💡 대안 시간 제안\n\n"
+            f"죄송합니다. 요청하신 시간은 예약이 어렵습니다.\n\n"
+            f"📅 원래 요청: {data['date']} {data['time']}\n"
+            f"💡 제안된 대안: {alternative_datetime}\n\n"
+            f"이 대안을 수락하시겠습니까?"
+        )
     else:
         alt_message = (
             f"💡 Alternative Time Suggested\n\n"
@@ -720,6 +728,12 @@ async def accept_alternative_callback(update: Update, context: ContextTypes.DEFA
             f"💡 新しい日時: {data['date']} {data['time']}\n\n"
             f"コンサージュが最終承認を行います..."
         )
+    elif lang == 'ko':
+        await query.edit_message_text(
+            f"✅ 대안 수락됨\n\n"
+            f"💡 새로운 날짜/시간: {data['date']} {data['time']}\n\n"
+            f"컨시어지의 최종 승인을 기다리는 중..."
+        )
     else:
         await query.edit_message_text(
             f"✅ Alternative Accepted\n\n"
@@ -770,6 +784,12 @@ async def decline_alternative_callback(update: Update, context: ContextTypes.DEF
             f"❌ 代替案を却下しました\n\n"
             f"予約がキャンセルされました。\n"
             f"別の日時で再度予約をお願いします。"
+        )
+    elif lang == 'ko':
+        await query.edit_message_text(
+            f"❌ 대안 거부됨\n\n"
+            f"예약이 취소되었습니다.\n"
+            f"다른 시간으로 새로운 요청을 제출하세요."
         )
     else:
         await query.edit_message_text(
@@ -895,9 +915,15 @@ async def cancel_reservation_start(update: Update, context: ContextTypes.DEFAULT
     user_id = update.effective_user.id
     lang = context.user_data.get('language', 'en')
     
+    # デバッグ: 確定済み予約の数を確認
+    logger.info(f"User {user_id} requested cancellation. Confirmed bookings: {len(confirmed_bookings.get(user_id, {}))}")
+    
     # ユーザーの確定済み予約を取得
     if user_id not in confirmed_bookings or not confirmed_bookings[user_id]:
-        await update.message.reply_text(get_message(lang, 'no_bookings'))
+        await update.message.reply_text(
+            f"You have no confirmed bookings.\n確定済みの予約はありません。\n확정된 예약이 없습니다.\n\n"
+            f"Debug info: User ID {user_id}"
+        )
         return
     
     # 予約選択ボタンを作成
@@ -911,7 +937,9 @@ async def cancel_reservation_start(update: Update, context: ContextTypes.DEFAULT
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        get_message(lang, 'select_booking_to_cancel'),
+        f"Select a booking to cancel:\n"
+        f"キャンセルする予約を選択してください:\n"
+        f"취소할 예약을 선택하세요:",
         reply_markup=reply_markup
     )
 
