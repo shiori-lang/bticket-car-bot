@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # ===========================================
 # 設定（ここを変更してください）
 # ===========================================
-BOT_TOKEN = "7721052537:AAHEt2HDVIiFc-tobeBlOArSNm_Bkdk7jVo"
+BOT_TOKEN = "7721052537:AAHC0Khs1NudLzbOzKmsB1AI4NugnaeYQSw"
 CONCIERGE_CHAT_ID = -4849725102
 GROUP_CHAT_ID = -1003416443982
 
